@@ -1,0 +1,152 @@
+= Anotações sobre Storage  Linux
+-------
+
+
+== Anotações iSCSI
+
+=== Configução do iSCSI target
+
+A instalação do iSCSI target é feita da seguinte forma:
+ yum install targetcli
+
+Subir o serviço do target iscsi
+ systemctl start target
+
+Firewall portas_
+ *porta 3260 / TCP
+
+
+=== Expondo as informações iSCSI
+
+==== Disponibilizando volume
+O iSCSI utiliza disco (LVM) e arquivo (file i/o). No RHEL-7 temos o comando  `targetcli` responsável pelo  gerenciamento iSCSI.
+
+ vgcreate  stgvol /dev//sdb1
+ lvcreate -n lv01 -L 200M stgvol
+
+==== iSCSI - Construção do block device
+
+ create bloco001 dev=/dev/mapper/stgvol-lv01
+
+==== Definindo o nome do host que poderá conectar no taget
+
+No servidor client acesse o arquivo `/etc/iscsi/initiatorname.iscsi` e altere para ficar da  forma abaixo:
+
+ InitiatorName=iqn.2018-01.labs.corp:lab02 <2>
+ systemctl restart iscsi iscsid <3>
+
+
+==== iSCSI - Construção do IQN
+ create iqn.2018-01.labs.corp:target01
+
+==== iSCSI - Construção da ACL
+ acls/  create iqn.2018-01.labs.corp:lab02 <1>
+
+
+==== iSCSI - Construção do portal
+ create portal
+
+.Observações
+
+<1> Neste passo não é para colocar o ip , hostname e nem subrede e sim initiator do host que vai conectar ao target
+<2> Utilize o nome `lab02` para definir o cliente que irá acessar o volume iSCSI
+<3> Reinicie o serviço iSCSI
+
+==== Configurações opcionais do iSCSI target
+
+===== Configurando o acesso ao IQN com usuário e senha
+
+Está configuração permite amarrar um usuário e senha. Assim  a lun só poderá ser acessada com usuário e senha provido pelo cliente
+
+====== Amarrando uma credencial a uma lun
+
+ cd iqn.2018-01.labs.corp:lab02 <1>
+ set auth userid=usr <2>
+ set auth password=password
+
+ou
+ iscsi/iqn.2003-01.local.rhce.ipa:target/tpg1/acls/iqn.1994-05.com.redhat:srv1/ set auth userid=client password=client
+
+======= Procedimento para desligar autenticação
+
+ iscsi/iqn.2003-01.local.rhce.ipa:target/tpg1 set attribute authentication=0
+
+<1> Abre  a IQN cd
+<2> Definição do usuário e passowrd
+
+
+=== Configução do iSCSI initiator
+
+==== Instalação dos pacotes necessários para iSCSI initiator
+
+  yum install iscsi-initiator-utils
+
+==== Configuração do iSCSI initiator sem senha
+
+1. Define o arquivo  `/etc/iscsi/initiatorname.iscsi` e altere para ficar da  forma abaixo:
+
+ InitiatorName=iqn.2018-01.labs.corp:lab02
+ systemctl restart iscsi iscsid
+
+2. Faça um discovery no servidor iSCSI
+
+ iscsiadm -m discovery -t sendtargets -p 192.168.40.11:3260
+
+
+3. O comando deverá gerar uma saída como esta:
+
+  192.168.40.11:3260,1 iqn.2018-01.labs.corp:target01
+
+4. Loge no servidor sem usuário e senha
+
+  iscsiadm --mode node --targetname iqn.2018-01.labs.corp:target01  --portal 192.168.40.11 -l -d9
+
+5. Valide se o volume foi montando com sucesso
+
+ [root@lab02 ~]# lsblk
+ NAME          MAJ:MIN RM  SIZE RO TYPE MOUNTPOINT
+ sda             8:0    0    8G  0 disk
+ ├─sda1          8:1    0  700M  0 part /boot
+ └─sda2          8:2    0  7.3G  0 part
+ ├─rhel-root 253:0    0  4.9G  0 lvm  /
+ ├─rhel-swap 253:1    0 1000M  0 lvm  [SWAP]
+ └─rhel-var  253:2    0  1.5G  0 lvm  /var
+ sdb             8:16   0 1000M  0 disk#
+ sr0            11:0    1 1024M  0 rom
+
+  [root@lab02 ~]# lsblk --scsi
+  NAME HCTL       TYPE VENDOR   MODEL             REV TRAN
+  sda  0:0:0:0    disk ATA      Red Hat Enterpri VWA8 sata
+  sdb  41:0:0:0   disk LIO-ORG  bloco001         4.0  iscsi
+  sr0  1:0:0:0    rom           Virtual DVD-ROM  R103 sata
+
+
+==== Configurando usuário e senha para conectar ao iSCSI initiator
+
+O arquivo `/etc/iscsi/iscsi.conf` permite registrar o usuário e senha que serão utilizados para logar
+
+node.session.auth.authmethod = CHAP
+node.session.auth.username = usr
+node.session.auth.password = pwd
+
+
+=== Comando para gerenciamento do iSCSI
+
+
+#### Comandos avançados
+
+.Operando Firewall-cmd mais rich-rules
+|===
+|Ação desejada | Comando firewall-cmd usando rich rules
+|Efetuar login |   iscsiadm --mode node --targetname iqn.2018-01.labs.corp:target01  --portal 192.168.40.11 -l -d9 ou iscsiadm --mode node -u
+|Efetuar logoff | iscsiadm --mode node -u   or iscsiadm --mode node --logout ou iscsiadm --mode node --logout
+|Realizar discovery| iscsiadm --mode discovery --type sendtargets --portal 192.168.1.81 ou iscsiadm -m node -u
+|Fazer login numa lun | firewall-cmd --permanent --zone=<ZONE> --add-rich-rule='rule family=ipv4 source address=10.0.0.0/24 masquerade'
+|Checar sessoes iSCSI   | iscsiadm -m session -P 0 ou
+| Scanear sessoes iscsi | iscsiadm -m discovery -t st -p target_IP -o new
+| Remover sessoes de um host | iscsiadm -m discovery -t st -p target_IP -o delete
+
+
+
+|Listar se existe algum dispositivo iscsi ou scsi | lsblk --scsi
+|===

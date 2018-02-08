@@ -1,0 +1,120 @@
+= Titulo: Anotações sobre IDM RHEL 7.4
+-------
+
+
+
+== Dicas gerais sobre o uso do IDM
+- IDM não suporta o uso de FIPS
+- Não utilize NSCD e SSSD juntos podem atrapalhar no cache (offline) do modulo de autenticacao do sistema operacional
+- IPv6 deve estar habilitado para instalação do IDM
+- Utilize NTP não virtualizado
+- IDM recomenda que o nome do dominio Kerberos e DNS sejam iguais
+
+== Checagem de pré requisitos para instalação do idm
+
+- A saida do comando hostname deve voltar fqdn do servidores
+- Siga o capítulo 02 do Guide IDM para validação de dns externo pagina 20 - 22
+
+
+== Comandos para instalação do IDM com DNS integrado
+   yum install ipa-server  ipa-server-dns
+
+== Comandos para remover IDM
+   ipa server-del *nome_do_servidor_fqdn*
+   ipa-server-install --uninstall
+
+== Instalando um cliente
+   yum install ipa-client --enable-dns-updates
+
+=== Removendo o cliente idm
+    ipa-client-install --uninstall
+
+    Removendo keytab
+    ipa-rmkeytab -k /path-to-keytab -r DOMINIO KERBEROS
+
+    Removendo host
+    ipa host-del cliente.example.com
+
+=== Instalando cliente de forma interativa
+    ipa-client --unattended --hostname (nome_do_cliente) --server (servidor idm) --domain (nome do dominio) --password 'PASSWORD' --realm (DOMINIO Kerberos) --enable-dns-updates
+
+=== ADM Client pelo Kickstart
+
+    Procure na documentação do IDM  no capitulo 3 - no subitem '3.4.'
+
+=== Renomeando cliente 'hostname'
+    Procure na documentação do IDM  no capitulo 3 - no subitem '3.8.'
+
+=== Adicionando o cliente por comando
+   ipa-client-install --principal --password
+
+=== Requisito de browser para navegar no IDM
+    Versão mínima Mozilla 38 ou Chrome 46
+
+=== Procedimento backup IDM
+    ipa-backup --data --online --logs
+
+    Para mais detalhes procure no item 9.1.2 e 9.2.1
+
+    ipa-restore /path/to-backup
+
+=== Procedimento para Sel-service
+    Procure no item 10.2
+
+=== Procedimento para criação de Roles para usuários
+    Procure no item 10.4.1 , 10.4.1.2 e 10.4.2
+
+
+== Tabela de comandos administrativas do IDM
+
+
+|===
+|Descrição| Comando
+
+|Procurando o usuário admin| ipa user-find admin
+|Listar todos usuarios| ipa user-find
+|Procurar por grupo baseado por string| ipa group-find keyword ou ipa group-find --user=user_name
+|Listar detalhes sobre um host | ipa host-show example
+|Pesquisa de objetos |ipa *-find --> ipa user-find
+|Visualizar funções dos servidores| ipa config-show
+|Visualizar funções habilitadas | ipa server-show
+|Determinando quantidade de objetos podem ser retornado por pesquisa| ipa config-mod --searchrecordslimit=500 --searchtimelimit=5
+|Determinando o tamanho do objeto e tempo de resposta | ipa user-find --sizelimit=2-- --timelimit=120
+|Adicionando usuario | ipa user-add username
+|Procurando serviço amarrado ao host|ipa service-find client.example.com
+|Procurando todos grupos de host amarrado ao host|ipa hostgroup-find client.example.com
+|Iniciando e parando os serviços IDM | ipactl stop & ipactl start
+|Reinicinando idm|ipactl restart
+|Configurando Firefox para permitir Kerberos | ipa-client-install --configure-firefox (cliente integrado) não integrado é necessário copiar /etc/krb5.conf para a maquina cliente e exportar kerberos no cliente como variável - export KRB5_CONFIG=/etc/krb5_ipa.conf
+|Visualizando topologia do IDM| ipa topologysegment-show ou ipta topologysegment-find
+|===
+
+== Tabela de comandos Kerberos
+
+|===
+|Descrição| Comando
+|Logando com usuário IDM através do Kerberos| kinit admin
+|Logando com usuário local | kinit
+|Listando TGT em cache | klist
+|Destruir ticket kerberos| kdestroy
+|===
+
+
+== Tabela de comando para gestão de usuario <1>
+|===
+|Comando | Descrição
+|ipa user-find| Localizar usuario
+|ipa user-mod user | modificar a conta
+|ipa user-disable ou ipa user-enable user_login| HAbilita ou desabilita a conta
+|ipa user-add |  adicionar usuario
+|ipa user-del | remove a conta
+|ipa user-undel login | Restaurar uma conta preservada
+|ipa user-del --preserve user_login | PReservar a conta <2>
+|ipa user-show user_login| Mostra informacao sobre usuario
+|ipa stageuser-activate user_login | Ativa a conta movendo stageuser para ACtivate
+
+|===
+Todos os serviços listados por este comando determina localização correspondente do keytab do cliente
+
+<1> Mais detalhes sobre gerenciamento de usuario procurar na pagina 149.
+<2> Existe a possibilidade de colocar contas com permissao especifica para ativar , stag uma conta

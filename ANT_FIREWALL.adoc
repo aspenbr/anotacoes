@@ -1,0 +1,173 @@
+= Anotações sobre Firewall Linux
+-------
+
+
+== Como funciona Zonas?
+
+O modelo de zona se baseia no uso de uma interface ou endereço de origem.
+
+=== Zonas padrões do Firewalld
+image::/Users/redhat/Downloads/22tab02.jpg[]
+
+=== Construindo um serviço XML do firewall-cmd
+
+Na pasta /usr/lib/firewalld/services ou /etc/firewalld/services é possível achar todos os XML que fazem parte dos serviços pré configurados
+
+ [root@server1 services]# cat ftp.xml
+ <?xml version="1.0" encoding="utf-8"?>
+ <service>
+ <short>FTP</short>
+ <description>FTP is a protocol used for remote file transfer. If you plan to make your FTP server publicly available, enable this option. You need the vsftpd package installed for this option to be useful.
+ </description>
+ <port protocol="tcp" port="21"/>
+ <module name="nf_conntrack_ftp"/>
+ </service>
+
+.Operando Firewall-cmd
+|===
+|Ação desejada | Comando firewall-cmd
+|Listar serviços pré configurados  | firewall-cmd --get-services
+|Listar zona default | firewall-cmd --get-default-zone
+|Listar zonas disponiveis | firewall-cmd --get-zones
+|Show estado do firewalld | firewall-cmd --list-all
+|Listar estado do firewall da zona publica | firewall-cmd --list-all --zone=public
+|Listar as regras ativas no firewall-cmd | firewall-cmd --list-services
+|Adicionar um serviço permanentemente | firewall-cmd --addport=2022/tcp --permanent ou firewall-cmd --addservice=ssh/tcp --permanent
+|Chamar o X do firewalld |firewall-config
+|===
+
+
+=== Mais comandos   Firewall-cmd
+
+image::/Users/redhat/Downloads/22tab03.jpg[]
+
+=== Configurando um serviço customizado
+
+Dentro do diretorório _/etc/firewalld/services/_ tem todos os serviços defaults do RHEL-7 configurados em XML.
+
+==== Adicionando um serviço customizado
+
+1. Dentro do diretorio /etc/firewalld/services/ copie o _arquivo_ `ssh` para mesmo diretorio _/etc/firewalld/services/ssh-customizado_
+
+
+2. Execute o comando `firewall-cmd --reload` seguido de `firewall-cmd --get-services`  para visualizar  todos os serviços ativos no momento
+
+3. Execute o comando para adicionar o novo serviço
+
+   firewall-cmd --add-service ssh-custom --permanent && firewall-cmd --reload
+
+4. Execute o comando `firewall --list-services` para visualizar os serviços novo
+
+
+==== Gestão avançada do firewalld
+
+Existe duas abordagem para gerenciamento de regras complexas do firewalld .
+
+
+**1.rich rule sintax **
+
+Os seguintes recursos podem ser realizados usando rich rule
+
+* Configuração de log
+* Port Forwarding
+* Masquerading
+* Rate limit
+* Permitir conexões para uma especifica zona
+
+
+#### Sintaxe do rich rule
+
+
+*[Rule]*    *[source][destionation]* *{service|port|protocol|icmp-block|masquerade|forward-port}* *[log][audit]* *[accept|reject|drop]*
+
+
+##Utilize o manual man 5 firewalld.richlanguage para pegar exmeplo do rich language##
+
+### Hiearquia de regras
+
+Deve sempre seguir hierquia para evitar conflito na ordem das regras
+
+1. Direct rule
+2. Port forwarding e masquered rules
+3. Logging rules
+4. Allow Rules
+5. Deny Rules
+
+### Gerenciamento de regras
+
+É possível gerenciar facilmente as regras pelo firewalld usando rich rules. Existe um porto importante no desenho que é listar as regras e depois usar o ID da regra para remover a mesma.+
+
+Outro ponto importante é possível usar o parâmetro `timeout=15` . Com este paramêtro é possível inserir uma regra e ter vida por 15 segundos depois a regra automaticamente sai do sistema evitando lock-in.
+
+.Gerenciamento via rich rules
+
+image::/Users/redhat/Downloads/32tab02.jpg[]
+
+#### Comandos avançados
+
+.Operando Firewall-cmd mais rich-rules
+|===
+|Ação desejada | Comando firewall-cmd usando rich rules
+|Geração de log para uma regra | firewall-cmd --zone=dmz --add-rich-rule='rule service name="ssh" log prefix="SSH ATTEMPT: " level="notice" limit value="3/m" accept
+|Simplesmente mascarar | firewall-cmd --permanent --zone=<ZONE> --add-masquerade
+|Mascarando mais limitando a zona e o ip de origem | firewall-cmd --permanent --zone=<ZONE> --add-rich-rule='rule family=ipv4 source address=10.0.0.0/24 masquerade'
+|Criando uma regra de nat DNAT  | firewall-cmd --permanent --zone=public --add-forward -port=port=2022:proto=tcp:toport=22:toaddr=10.0.0.10
+|Habilitando roteamento roteamento  | sysctl net.ipv4.ip_forward=1
+|
+|===
+
+**2.direct**
+
+.Observações gerais sobre rich rules
+
+1. Na prova não será cobrado direct
+2. Na prova pode executar as regras via iptables
+3. NA prova foque no uso da regra via rich
+
+
+== Quiz
+
+===== Quiz 01
+
+REVIEW QUESTIONS
+
+1. Which service should be running before you try to create a firewall configuration with firewall-config?
+
+ firewalld
+
+2. Which command adds UDP port 2355 to the firewall configuration in the default zone?
+
+ firewall-cmd --add-port=2355/udp
+
+3. Which command enables you to list all firewall configuration in all zones?
+
+ firewall-cmd --list-all
+
+
+4. Which command enables you to remove the vnc-server service from the current firewall configuration?
+
+ firewall-cmd --delservice=vnc-server
+
+5. Which firewall-cmd command enables you to activate a new configuration that has been added with the --permanent option?
+
+ firewall-cmd --reload
+
+6. Which firewall-cmd option enables you to verify that a new configuration has been added to the current zone and is now active?
+
+ firewall-cmd --list-all
+
+7. Which command enables you to add the interface eno1 to the public zone?
+
+ firewall-cmd --add-interface=eno1 --zone=public
+
+8. If you add a new interface to the firewall configuration while no zone is specified, which zone will it be added to?
+
+ default
+
+9. Which command enables you to add the source IP address 192.168.0.0/24 to the default zone?
+
+ firewall-cmd --add-source=192.168.0.0/24 --zone=public
+
+10. Which command enables you to list all services that are currently available in firewalld?
+
+ firewall-cmd --list-services

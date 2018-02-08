@@ -1,0 +1,113 @@
+= Anotações sobre SElinux
+-------
+
+
+== Como funciona Selinux ?
+
+Selinux é um controle de acesso mandatorio que permite definir acesso entre usuário e processo junto a recursos como porta e arquivos. Selinux fazer o controle de acesso entre a origem (processo / usuario) e destino (porta/ arquivo ) permitindo ou negando.
+
+== Elementos centrais do Selinux
+
+. SourceDomain - Geralmente é um usuário ou processo um deste objetos iram acessar sempre uma porta ou arquivo
+. TargetDomain - Geralmente é uma porta ou arquivo . É objeto alvo que deve ser acessado
+. Context - É um label de segurança utilizado para categorizar os objetos
+. Label - Label tem a funcionalidade de determinar o que source vai acessar no destino ou target
+. Política - Coleção de regras que define o que source vai acessar no destino
+. Rule - É uma parte da política que é feita para definir o que source vai acessar no destino
+
+
+== Como gerenciar   o Selinux
+
+Para gerenciamento do Selinux são algumas ferramentas especiais
+
+. Tabela de comandos do Selinux
+
+
+|===
+|Comando | Explicação
+|semanage | Comando responsável por escrever  novo contexto para a política
+|restorecon | aplica a política do contexto direto no sistema de arquivo (pasta / arquivo)
+|chcon | Comando que escreve um novo contexto diretamente para sistema de arquivos e nao para política. Todas as coisas aplicada chcon é sempre rescrito quando file system é relabled ou original contexto é restaurado pela politica do sistema de aruqivos <evitar o seu uso>
+|===
+
+
+=== Como instalar Semanage
+
+
+ yum install policycoreutils-devel
+
+
+
+=== Como instalar o manual do Semanage
+
+ sepolicy manpage -a -p /usr/share/man/man8
+ mandb
+ man -k _selinux
+
+===  Troubleshotting
+
+== Labaratórios
+
+
+=== Restaurando context original
+
+O contexto é um arquivo /etc/hosts que foi copiado para outro pasta
+
+ cp -a  /etc/hosts /opt/ <1>
+ ls -Z /opt/hosts
+ -rw-r--r--. root root system_u:object_r:net_conf_t:s0  /opt/hosts <2>
+
+ restorecon -v /opt/hosts
+ restorecon reset /opt/hosts context system_u:object_r:net_conf_t:s0->system_u:object_r:usr_t:s0 <3>
+
+ ls -Z
+ -rw-r--r--. root root system_u:object_r:usr_t:s0       /opt/hosts <4>
+
+<1> Copia o arquivo /etc/hosts sem alterar propriedade do selinux
+<2> Lista os atributos Selinux
+<3> Lista os atributos Selinux do /etc/hosts - observe que está usando o contexto do /etc/hosts e não do /opt
+<4> Ao executar o comando restorecon automaticamente o arquivo /opt/hosts foi resetado para contexto original que no caso é do /opt
+
+=== Alterando o contexto de um arquivo web
+
+. Crie uma pasta mkdir /web
+. Coloque um arquivo html
+. Verifique a permissão Selinux  e execute os comando Selinux para alteração
+
+ ls -Z /web --> encontraremos o contexto padrão do /root unconfined_u:object_r:default_t:s0
+ Verifique pelo comando grep -i avc /var/log/audit.log que o arquivo está sendo bloqueado
+
+Altere para contexto httpd
+
+ semanage fcontext -a -t httpd_sys_content_t "/web(/.*)? <1>
+ restorecon -Rv <2>
+ elinks http://localhost <3>
+
+<1> Aplicando o contexto correto que no caso é http
+<2> Aplicando o contexto alterado no sistema de arquivo
+<3> Instale o elinks
+
+=== Troubleshoting
+
+O troubleshotting pode ser feito por duas formas
+
+==== Arquivo de log
+
+Via log basta monitorar /var/log/audit/audit.log coma a saída de comando
+
+ tail -f /var/log/audit/audit.log |grep -i avc
+
+
+==== Aplicação
+
+Instale  o pacote setroubleshotting-server
+
+ yum install -y setroubleshooting-server
+
+Execute o varredor se
+
+ sealert /var/log/audit/audit.log
+
+ sealert  -a  /var/log/audit/audit.log <1>
+
+<1> Comando que executará analise dos logs /var/log/audit/audit.lgo
