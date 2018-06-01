@@ -1,0 +1,104 @@
+
+
+
+==Quiz-1
+
+1. Which of the following statements is not true about DNS lookups?
+
+a. *Every host should be configured with at least 2 DNS name servers.*
+
+b. If the requested data was not found locally on the DNS name server, a name server of the root domain is contacted.
+
+c. After retrieving information from another DNS server, the DNS server stores the requested information in its cache.
+
+d. Information in the cache of a DNS server expires once the TTL is reached.
+
+2. Which of the following is not a default part of a resource record?
+
+a. Type
+
+b. *Data*
+
+c. Nameserver --> correta
+
+d. TTL
+
+3. Which resource record is used to look up the hostname for a specific IPv4 address?
+
+a. A
+
+b. *PTR*
+
+c. AA
+
+d. AAAA
+
+4. Which of the following is not a package that can be used on RHEL 7 as a caching name server?
+
+a. unbound
+
+b. bind
+
+c. *unreal*
+
+d. dnsmasq
+
+5. Which command enables you to check for errors in the unbound configuration file?
+
+a. checkconf
+
+b. *unbound-checkconf*
+
+c. testparm
+
+d. unbound-testparm
+
+6. When you are configuring the unbound cache-only DNS name server, a few parameters are very important to configure. Which of the following is not one of them?
+
+a. *forward-zone*
+
+b. trust-anchor
+
+c. interface
+
+d. access-control
+
+7. Which parameter enables you to specify the name of a DNS domain for which DNSSEC validation can be skipped?
+
+a. *domain-insecure*
+
+b. skip-option
+
+c. anchor
+
+d. trust-anchor
+
+8. Which of the following commands gives the information that needs to be specified with the trust-anchor option in unbound.conf?
+
+a. dig +dnssec DNSKEY example.com
+
+b. dig +dnssec DNSSEC example.com
+
+c. *dig dnssec +DNSKEY example.com*
+
+d. dig dnssec example.com
+
+9. Which of the following commands enables you to dump the contents of the unbound cache and write the results to a file cache.txt?
+
+a. *unbound dump_cache*
+
+b. systemctl dump unbound
+
+c. unbound-control --dump
+
+d. unbound-control dump_cache
+
+10. Which of the following messages would you expect in the dig output if the DNS name that was requested could not be found?
+
+a. ERROR
+
+b. DOMAIN_NOT_FOUND
+
+c. NXDOMAIN
+
+d. *SRVFAIL*

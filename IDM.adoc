@@ -113,8 +113,41 @@
 |ipa user-show user_login| Mostra informacao sobre usuario
 |ipa stageuser-activate user_login | Ativa a conta movendo stageuser para ACtivate
 
+
+
 |===
 Todos os serviços listados por este comando determina localização correspondente do keytab do cliente
 
 <1> Mais detalhes sobre gerenciamento de usuario procurar na pagina 149.
 <2> Existe a possibilidade de colocar contas com permissao especifica para ativar , stag uma conta
+
+
+
+
+== Tabela comando operacionais Openldap
+|===
+|Ação | Comando
+|Lista toda estrutura LDAP | ldapsearch -x -H ldap://idmlabs.labsboo.corp -b "dc=labsboo,dc=corp"
+|Atualizar certificado do host | update-ca-trust
+|Informacao de usuário especificamente| $ ldapsearch -x uid=admin
+|===
+
+== Procedimento para instalar ceritificado raiz no RHEL
+
+
+1. Instale o ipa-client
+2. Conecte ao IDM
+3. Copie o certificado cp /etc/ipa/ca.crt /etc/pki/ca-trust/source/anchors/
+4. Execute atualização do update-ca-trust
+
+== link de apoio para está questão
+
+* https://access.redhat.com/solutions/459683
+* https://github.com/ansible/awx/issues/411
+* https://www.redhat.com/archives/freeipa-users/2013-May/msg00047.html
+*https://www.happyassassin.net/2014/09/06/adding-your-freeipa-servers-ca-certificate-to-the-system-wide-trust-store-on-fedora-and-rhel/ (adicionando certificado na riaz do SO    )
+*https://blog.confirm.ch/adding-a-new-trusted-certificate-authority/
+
+== integração idm e ansible tower
+
+* http://docs.ansible.com/ansible-tower/latest/html/administration/ldap_auth.html

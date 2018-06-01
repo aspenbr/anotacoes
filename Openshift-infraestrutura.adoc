@@ -1,0 +1,145 @@
+= Anotações sobre Openshift
+-------
+
+
+*Funçoes do  Master*
+
+* Master provides single API that all tooling and systems interact with
+
+* Any request goes through this API
+
+* All API requests SSL-encrypted and authenticated
+
+* Authorizations handled via fine-grained role-based access control (RBAC)
+
+* Master can be tied into external identity management systems
+
+* Examples: LDAP, Active Directory, OAuth providers like GitHub and Google
+
+
+*Desired and Current State*
+
+* Held in data store that uses etcd as distributed key-value store
+
+* Also holds things like RBAC rules, application environment information, and non-application user data
+
+
+*Scheduler*
+
+* Responsible for determining pod placement
+
+* Takes current memory, CPU, and other environment utilization into account when placing pods on nodes
+
+* For application high availability, spreads pod replicas between nodes
+
+
+Routing Layer
+External clients need to access applications running inside OpenShift
+
+Routing layer is close partner to service layer
+
+Runs in pods inside OpenShift
+
+Provides automated load balancing to pods for external clients
+
+Provides load balancing and auto-routing around unhealthy pods like service layer does
+
+Routing layer pluggable and extensible if hardware or non-OpenShift software router desired
+
+
+OpenShift Networking
+Container networking based on integrated Open vSwitch
+
+Platform-wide routing tier
+
+Ability to plug in third-party software-defined network (SDN) solutions
+
+Integrated with DNS and existing routing and load balancing
+
+Networking Workflow
+Route
+Exposes service by giving it externally reachable hostname
+
+Consists of route name, service selector, and (optional) security configuration
+
+Router can consume defined route and endpoints identified by service
+
+Provides named connectivity
+
+Lets external clients reach OpenShift-hosted applications
+
+*Router*
+
+* Easy-to-deploy multitier application
+
+Routing layer required to reach applications from outside OpenShift environment
+
+Router container can run on any node host in environment
+
+Administrator creates wildcard DNS entry (CNAME) on DNS server
+
+CNAME resolves to node host hosting router container
+
+Router is ingress point for traffic destined for OpenShift-hosted pods
+
+Router container resolves external requests (https://myapp.cloudapps-guid.ose.opentlc.com) and proxies requests to right pods
+
+
+*Networking Workflow*
+
+Scenario: External client points browser to myApp.cloudapps.ml.opentlc.com:80
+DNS resolves to host running router container
+
+Using openshift-sdn overlay network:
+
+Router checks if route exists for request
+
+Proxies request to internal pod IP:port (10.1.2.3:8080)
+
+
+*Pod Connectivity*
+
+Pods use network of OpenShift node host to connect to other pods and external networks
+
+Scenario: Pod transmits packet to pod in another node host in OpenShift
+environment
+Container sends packet to target pod using IP 10.1.2.3:8080
+
+OpenShift node uses Open vSwitch to route packet to OpenShift node hosting target container
+
+Receiving node routes packet to target container
+
+*Services and Pods*
+
+* Services often used to provide permanent IP to group of similar pods
+
+Internally, when accessed, services load-balance and proxy to an appropriate backing pod
+
+Backing pods can be added to or removed from service arbitrarily while service remains consistently available
+
+Enables anything that depends on service to refer to it at consistent internal address
+
+*Scenario: Pod transmits packet to service representing one or more pods*
+
+Container sends packet to target service using IP 172.30.0.99:9999
+
+When service requested, OpenShift node proxies packet to one of the pods represented by service (10.1.2.3:8080)
+
+*Container Deployment Workflow*
+
+*Scenario: New application requested via CLI, web console, or API
+OpenShift API/authentication layer:*
+
+* Approves request, considering user’s permissions, resource quotas, and other information
+
+* Creates supporting resources: deployment configuration, replication controllers, services, routes, and persistent storage claims
+
+*OpenShift scheduling layer:*
+
+* Designates node host for each pod, considering resources' availability and load and application spread between nodes for application high availability
+
+*OpenShift node:*
+
+* Pulls down image to be used from external or integrated registry
+
+* Starts container (pod) on node

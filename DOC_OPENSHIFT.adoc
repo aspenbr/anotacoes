@@ -1,0 +1,624 @@
+= Anotações sobre Openshift
+
+*
+
+
+== Instalação do Openshift - modelo de configuração
+
+=== Exemplo de uma topologia simples
+
+*Configuração simples*
+
+ - 1 master
+ - 1 infra
+ - 2 node
+
+*Modelo lógico*
+
+- Storage dedicado
+- Instalação do node manual
+- instalação do logging manual
+
+Um unbound é uma especie de dns criado para ser forward para DNS principal. Sua principal vantagem é segurança e a sua simplicidade.
+
+
+*Exemplo do arquivo de configuração*
+
+ [OSEv3:vars]
+ timeout=60
+ ansible_ssh_user=root
+ #ansible_become=true
+ #os_firewall_use_firewalld=true
+ #openshift_disable_check="disk_availability,memory_availability,package_version,package_update"
+ openshift_disable_check="disk_availability,memory_availability"
+
+ deployment_type=openshift-enterprise
+ openshift_enable_service_catalog=false
+ #openshift_web_console_install=false
+ #openshift_release=3.9
+ openshift_clock_enabled=true
+ os_sdn_network_plugin_name='redhat/openshift-ovs-multitenant'
+ osm_cluster_network_cidr=10.128.0.0/14
+
+ #openshift_master_cluster_method=native
+ #openshift_master_cluster_hostname=ocpmaster.labs.corp
+ #openshift_master_cluster_public_hostname=ocpmaster.labs.corp
+ openshift_master_default_subdomain=cloudapps.labs.corp
+ openshift_master_htpasswd_users={'admin': 'admin:$apr1$slulAf6K$c6JSooaTg7RavU/PXHobx.', 'developer': '$apr1$xySBCH36$Lzw6m81rKP/hIqJYbXUht0'}
+ openshift_master_identity_providers=[{'name': 'htpasswd_auth', 'login': 'true', 'challenge': 'true', 'kind': 'HTPasswdPasswordIdentityProvider', 'filename': '/etc/origin/master/users.htpasswd'}]
+
+ #cluster esi
+ openshift_logging_install_logging=false
+ #openshift_logging_es_memory_limit=2Gi
+ #openshift_logging_es_cpu_limit=1
+ #openshift_logging_es_cluster_size=3
+ #openshift_logging_es_number_of_replicas=0
+
+
+ #openshift_hosted_registry_storage_kind=nfs
+ #openshift_hosted_registry_storage_access_modes=['ReadWriteMany']
+ #openshift_hosted_registry_storage_nfs_directory=/exports
+ #openshift_hosted_registry_storage_nfs_options='*(rw,root_squash)'
+ #openshift_hosted_registry_storage_volume_name=registry
+ #openshift_hosted_registry_storage_volume_size=40Gi
+
+ openshift_metrics_install_metrics=false
+ #openshift_metrics_storage_kind=nfs
+ #openshift_metrics_storage_access_modes=['ReadWriteOnce']
+ #openshift_metrics_storage_nfs_directory=/exports
+ #openshift_metrics_storage_nfs_options='*(rw,root_squash)'
+ #openshift_metrics_storage_volume_name=metrics
+ #openshift_metrics_storage_volume_size=10Gi
+ #openshift_metrics_storage_labels={'storage': 'metrics'}
+ #openshift_logging_storage_kind=nfs
+ #openshift_logging_storage_access_modes=['ReadWriteOnce']
+ #openshift_logging_storage_nfs_directory=/exports
+ #openshift_logging_storage_nfs_options='*(rw,root_squash)'
+ #openshift_logging_storage_volume_name=logging
+ #openshift_logging_storage_volume_size=10Gi
+ #openshift_logging_storage_labels={'storage': 'logging'}
+ #openshift_disable_check="disk_availability,memory_availability,package_version,package_update"
+
+ #Cloudforms
+ #openshift_cfme_install_app=true
+ #openshift_management_install_beta=true
+
+ [OSEv3:children]
+ masters
+ etcd
+ nodes
+ nfs
+
+ [masters]
+ ocpmaster.labs.corp
+
+ [etcd]
+ ocpmaster.labs.corp
+
+ [nodes]
+ ocpmaster.labs.corp openshift_node_labels="{'logging':'true','openshift_schedulable':'True','cluster': 'boocluster', 'region': 'master'}"
+ ocpinfra.labs.corp openshift_node_labels="{'logging':'true','cluster': 'boocluster', 'env':'infra', 'region': 'infra'}"
+ ocpnode01.labs.corp openshift_node_labels="{'logging':'true','cluster': 'boocluster', 'env':'app', 'region': 'primary'}"
+ ocpnode02.labs.corp openshift_node_labels="{'logging':'true','cluster': 'boocluster', 'env':'app', 'region': 'primary'}"
+
+ [nfs]
+ ocpmaster.labs.corp
+
+=== Exemplos de topologias funcionais  'apenas o link'( primeiro )
+
+https://github.com/aspenbr/henryford/blob/master/auto-diadia/Openshift/configuracao/NovoModelo/inventario-v-6
+
+
+
+=== Exemplo de topologia complexa ( segunda)
+
+*Topologia*
+
+ Três Masters
+ Um Infra
+ Três Nodes
+ Um Storage - NFS
+
+*Lógico*
+
+ Logging
+ Registry
+ Nodes
+
+*Arquivo de configuração*
+
+
+ [OSEv3:vars]
+ timeout=60
+ ansible_ssh_user=root
+ #ansible_become=true
+ #os_firewall_use_firewalld=true
+ #openshift_disable_check="disk_availability,memory_availability,package_version,package_update"
+ openshift_disable_check="disk_availability,memory_availability"
+
+ deployment_type=openshift-enterprise
+ openshift_enable_service_catalog=false
+ #openshift_web_console_install=false
+ #openshift_release=3.9
+ openshift_clock_enabled=true
+ os_sdn_network_plugin_name='redhat/openshift-ovs-multitenant'
+ osm_cluster_network_cidr=10.128.0.0/14
+ openshift_docker_options='--selinux-enabled  --insecure-registry=172.30.0.0/16  --log-driver=journald --signature-verification=False' <1>
+
+ #openshift_master_cluster_method=native
+ #openshift_master_cluster_hostname=ocpmaster01.labs.corp
+ #openshift_master_cluster_public_hostname=ocpmaster01.labs.corp
+ openshift_master_default_subdomain=cloudapps.ati.pe.gov.br
+ openshift_master_htpasswd_users={'admin': 'admin:$apr1$x2EtA141$kOZntzFeSrFO4ExJe7Nl4/', 'developer': '$apr1$xySBCH36$Lzw6m81rKP/hIqJYbXUht0'}
+ openshift_master_identity_providers=[{'name': 'htpasswd_auth', 'login': 'true', 'challenge': 'true', 'kind': 'HTPasswdPasswordIdentityProvider', 'filename': '/etc/origin/master/users.htpasswd'}]
+
+ #Configuracao registry
+ openshift_hosted_registry_storage_kind=nfs
+ openshift_hosted_registry_storage_access_modes=['ReadWriteMany']
+ openshift_hosted_registry_storage_host=lnxpocopenshift06.ati.pe.gov.br
+ openshift_hosted_registry_storage_nfs_directory=/exports
+ openshift_hosted_registry_storage_volume_name=registry
+ openshift_hosted_registry_storage_volume_size=40Gi
+
+ #configuracao de logging
+ openshift_logging_install_logging=true
+ openshift_logging_storage_kind=nfs
+ openshift_logging_storage_access_modes=['ReadWriteOnce']
+ openshift_logging_storage_host=lnxpocopenshift06.ati.pe.gov.br
+ openshift_logging_storage_nfs_directory=/exports
+ openshift_logging_storage_volume_name=logging
+ openshift_logging_storage_volume_size=10Gi
+ openshift_logging_storage_labels={'storage': 'logging'}
+ openshift_logging_es_memory_limit=2Gi
+ #openshift_logging_es_cpu_limit=2000m
+ #openshift_logging_fluentd_cpu_limit=1000m
+ #openshift_logging_kibana_cpu_limit=200m
+ openshift_logging_kibana_memory_limit=1Gi
+ openshift_logging_es_cluster_size=1
+ openshift_logging_es_number_of_replicas=1
+
+ #Configuracao Metrics
+ openshift_metrics_install_metrics=true
+ openshift_metrics_storage_kind=nfs
+ openshift_metrics_storage_access_modes=['ReadWriteOnce']
+ openshift_metrics_storage_host=lnxpocopenshift06.ati.pe.gov.br
+ openshift_metrics_storage_nfs_directory=/exports/
+ openshift_metrics_storage_volume_name=metrics
+ openshift_metrics_storage_volume_size=10Gi
+ #openshift_metrics_storage_labels={'storage': 'metrics'}
+
+
+ #openshift_disable_check="disk_availability,memory_availability,package_version,package_update"
+ #ca
+ #Cloudforms
+ openshift_cfme_install_app=false
+ #openshift_management_install_beta=true
+
+ [OSEv3:children]
+ masters
+ etcd
+ nodes
+ nfs
+ new_nodes
+
+ [masters]
+ lnxpocopenshift01.ati.pe.gov.br
+ lnxpocopenshift02.ati.pe.gov.br
+ lnxpocopenshift03.ati.pe.gov.br
+
+ [etcd]
+ lnxpocopenshift01.ati.pe.gov.br
+ lnxpocopenshift02.ati.pe.gov.br
+ lnxpocopenshift03.ati.pe.gov.br
+
+
+ [nodes]
+ lnxpocopenshift01.ati.pe.gov.br openshift_node_labels="{'logging':'true','openshift_schedulable':'True','cluster': 'aticluster', 'region': 'master'}"
+ lnxpocopenshift02.ati.pe.gov.br openshift_node_labels="{'logging':'true','openshift_schedulable':'True','cluster': 'aticluster', 'region': 'master'}"
+ lnxpocopenshift03.ati.pe.gov.br openshift_node_labels="{'logging':'true','openshift_schedulable':'True','cluster': 'aticluster', 'region': 'master'}"
+ lnxpocopenshift04.ati.pe.gov.br openshift_node_labels="{'logging':'true','cluster': 'aticluster', 'env':'infra', 'region': 'infra'}"
+ lnxpocopenshift05.ati.pe.gov.br openshift_node_labels="{'logging':'true','cluster': 'aticluster', 'env':'app', 'region': 'primary'}"
+ lnxpocopenshift07.ati.pe.gov.br openshift_node_labels="{'logging':'true','cluster': 'aticluster', 'env':'app', 'region': 'primary'}"
+ lnxpocopenshift08.ati.pe.gov.br openshift_node_labels="{'logging':'true','cluster': 'aticluster', 'env':'app', 'region': 'primary'}"
+
+ #[new_nodes]
+
+ [nfs]
+ lnxpocopenshift07.ati.pe.gov.br
+
+<1> Parametro options do Doccker agora será passado pelo inventário resultando na subscrita da configuração local do storage docker /etc/sysconfig/docker
+
+
+*Comando para iniciar a instalação do cluster a partir da versão 3.*
+
+`ansible-playbook -i inventario-gce-4 /usr/share/ansible/openshift-ansible/playbooks/deploy_cluster.yml`
+
+== Deploying pre requisitos do Openshift
+
+==== Teste de nomes
+
+ P1. nslookup _<nome do dominio> -> nslookup labs.corp
+ P2. nslookup teste.cloudapps.labs.corp
+
+==== Processo subscrição dos servidores que rodam Openshift
+
+ P1. subscription-manager attach --pool=8a85f9843affb61f013b52c3e53e53a5
+ P2. subscription-manager  release --set=7.5
+ P3. subscription-manager repos --disable="*"
+ P4. subscription-manager repos --enable=rhel-7-server-rpms  --enable=rhel-7-server-extras-rpms  --enable=rhel-7-server-ose-3.9-rpms --enable=rhel-7-fast-datapath-rpms  --enable=rhel-7-server-ansible-2.4-rpms"
+
+==== Processo de instalação de pacotes
+
+ P1. yum install wget git net-tools bind-utils iptables-services bridge-utils bash-completion kexec-tools sos psacct -y
+ P2. yum update -y
+ P3. yum install atomic-openshift-utils -y
+ P4. yum install docker-1.13.1 -y
+
+==== Teste da instalação do Docker
+
+ P1. rpm -V docker-1.13.1
+ P2. docker version
+
+==== Configuração do storage Docker
+
+
+==== Geração do arquivo docker-storage-setup*
+
+ cat <<EOF > /etc/sysconfig/docker-storage-setup
+ DEVS=/dev/vdb
+ VG=docker-vg
+ EOF
+
+==== Formatação de disco para Docker
+
+ wipefs --all --force /dev/sdb
+
+
+==== Configuração do docker storage setup
+
+ docker-storage-setup
+
+
+==== Execução da instalação
+
+1. ansible-playbook -i inventario-4  /usr/share/ansible/openshift-ansible/playbooks/deploy_cluster.yml
+2. ansible-playbook -i inventario-4  /usr/share/ansible/openshift-ansible/playbooks/prerequisites.yml
+3. ansible-playbook -i inventario-4 /usr/share/ansible/openshift-ansible/playbooks/adhoc/uninstall.yml
+
+===== Primeiro fase do controle do serviços do Docker
+
+Insira a linha abaixo no arquivo *_/etc/sysconfig/docker_*
+
+ OPTIONS=' --selinux-enabled  --insecure-registry=172.30.0.0/16 --log-driver=journald--signature-verification=False'
+
+Ou utiliza segunda opção usando o proprio iventário  `openshift_docker_options`
+
+ Exemplo: openshift_docker_options= "--selinux-enabled  --insecure-registry=172.30.0.0/16 --log-driver=journald--signature-verification=False"
+
+
+===== Procedimento adicionais
+
+*1. Procedimento para alteração da senha do usuário admin*
+
+ htpasswd /etc/origin/master/users.htpasswd  admin
+
+*2. Instalando os pacotes ansible playbooks*
+
+ yum install openshift-ansible-playbooks.noarch -y
+
+*3. Removendo o arquivo de configuração*
+
+ rm   /etc/sysconfig/docker-storage
+
+
+
+
+
+== Customização
+
+
+=== Instalação do registry
+
+Siga o workflow
+
+1. Crie um storage NFS ou Gluster
+2. Crie o volume PV via yaml depois o PVC
+3. Faça o deploy do DOcekr Registry
+4. Integra o Registry com o volume
+
+=== Configuração do NFS
+
+*Alteração boolean do virt_use_nfs*
+
+ setsebool -P virt_use_nfs 1
+
+*Exemplo de configuração do /etc/exports*
+
+ /exports		*(rw,root_squash)
+ /exports/registry	*(rw,root_squash)
+
+*Permissão padrão para NFS*
+
+ chmod -R 777 /exports
+ chown -R nfsnobody:nfsnobody /exports/registry/
+
+*Aviso Importante a pasta NFS deverá estar com 777 para todos os nós*
+
+*Exemplo da permissão aplicada*
+
+ ls -lha /exports
+ total 4.0K
+ drwxrwxrwx.  3 root      root        39 Apr 20 18:18 .
+ dr-xr-xr-x. 19 root      root      4.0K Apr 20 18:23 ..
+ drwxrwxrwx.  3 nfsnobody nfsnobody   20 Apr 26 01:51 registry
+ -rw-r--r--.  1 nfsnobody nfsnobody    0 Apr 20 18:18 teste.txt
+
+*Lembre-se desses ajustes*
+
+ setsebool -P virt_use_nfs 1
+ lsblk -o +UUID
+
+
+=== Storage PV e PVC
+
+
+*Criando o PV - nfs-ocmpaster-registry.yaml*
+
+O processo utilizado foi feito utilizando o arquivo arquivo nfs-pv.yaml  e depois executando o mesmo via oc
+
+ apiVersion: v1
+ kind: PersistentVolume
+ metadata:
+   name: pv0001
+ spec:
+   capacity:
+     storage: 25Gi
+ accessModes:
+ - ReadWriteOnce
+ nfs:
+   path: /exports/registry
+   server: 192.168.10.30
+ persistentVolumeReclaimPolicy: Retain
+
+*Criando PVC - nfs-claim.yaml*
+
+
+ apiVersion: v1
+ kind: PersistentVolumeClaim
+ metadata:
+   name: nfs-registry
+ spec:
+   accessModes:
+     - ReadWriteOnce
+  resources:
+    requests:
+      storage: 25Gi
+
+
+Primeiro é criado PV - `oc create -f nfs-ocmpaster-registry.yaml` depois o PVC `oc create -f nfs-claim.yaml` .
+
+Após a criação utilize os comandos `oc get  pv ou pvc`
+
+=== Deploying Registry
+
+*Passo a paso para deploy  Registry*
+
+ 1. oc adm registry --config=/etc/origin/master/admin.kubeconfig --service-account=registry --images='registry.access.redhat.com/openshift3/ose-${component}:${version}'
+ 2. oc volume deploymentconfigs/docker-registry --add --name=registry-storage -t pvc --claim-name=nfs-registry --overwrite
+
+
+ oc delete clusterrolebinding registry-registry-role
+ oc --config=/etc/origin/master/admin.kubeconfig delete -n default svc/docker-registry
+/usr/share/ansible/openshift-ansible/playbooks/adhoc/uninstall.yml
+
+
+.Links de referencia*
+|===
+| Recurso | Link
+| deploy registry| https://docs.openshift.com/container-platform/3.9/install_config/registry/deploy_registry_existing_clusters.html
+| conceito de storage | https://docs.openshift.com/enterprise/3.0/architecture/additional_concepts/storage.html
+|===
+
+=== Adicionando terceiro nó
+
+Seguir a documentação no item: https://docs.openshift.com/container-platform/3.9/install_config/adding_hosts_to_existing_cluster.html
+
+*Observações*
+
+  - Fazer o mesmo passos do  pré host - https://docs.openshift.com/container-platform/3.9/install_config/install/host_preparation.html
+  - Fazer teste do acesso ao NFS
+
+
+=== Deploying Logging sobre NFS
+
+O procedimento basicamente é o deployment do Elastic Search (ES) contianers. O procedimento básico é  criação uma deestrutura de diretório NFS e executar o script *_ansible-playbook [-i </path/to/inventory>] \
+    /usr/share/ansible/openshift-ansible/playbooks/openshift-logging/config.yml_*
+
+*Modelo de configuração default com NFS externo*
+
+ [OSEv3:vars]
+ openshift_logging_storage_kind=nfs
+ openshift_logging_storage_access_modes=['ReadWriteOnce']
+ openshift_logging_storage_host=nfs.example.com
+ openshift_logging_storage_nfs_directory=/exports
+ openshift_logging_storage_volume_name=logging
+ openshift_logging_storage_volume_size=10Gi
+
+*Modelo usado em poc com NFS (validado!)*
+
+ #configuracao de logging
+ openshift_logging_install_logging=true
+ openshift_logging_storage_kind=nfs
+ openshift_logging_storage_access_modes=['ReadWriteOnce']
+ openshift_logging_storage_host=lnxpocopenshift06.ati.pe.gov.br
+ openshift_logging_storage_nfs_directory=/exports
+ openshift_logging_storage_volume_name=logging
+ openshift_logging_storage_volume_size=10Gi
+ openshift_logging_storage_labels={'storage': 'logging'}
+ openshift_logging_es_memory_limit=2Gi
+ #openshift_logging_es_cpu_limit=2000m
+ #openshift_logging_fluentd_cpu_limit=1000m
+ #openshift_logging_kibana_cpu_limit=200m
+ openshift_logging_kibana_memory_limit=1Gi
+ openshift_logging_es_cluster_size=1
+ openshift_logging_es_number_of_replicas=1
+
+Observações
+
+- The openshift_logging_es_pvc_dynamic variable must be set in order to use persistent storage for logging. If *openshift_logging_es_pvc_dynamic is not set*, then cluster logging data is stored in an emptyDir volume, which will be deleted when the Elasticsearch pod terminates.
+
+*Link de referência*
+
+- https://docs.openshift.com/container-platform/3.9/install_config/install/advanced_install.html#advanced-install-configuring-registry-location
+- https://docs.openshift.com/container-platform/3.9/install_config/aggregate_logging.html
+
+== Deploying aplicação
+
+Deploying aplicação usando DC e BC
+
+ oc new project  boo
+ oc new-app php:5.6~https://github.com/aspenbr/henryford.git --context-dir=auto-diadia/Openshift/s2/exemplos/php-helloworld
+ oc get pods
+ oc describe svc/henryford
+ oc start-build henryford
+ oc logs henryford
+
+
+
+== Rápida referência
+
+=== Solução de problemas
+
+.Solução de problemas
+
+*1. Problema:* Durante a instalação do Openshift o deploymento do registry não funciona
+
+*Descrição do problema*
+
+ TASK [openshift_hosted : Poll for OpenShift pod deployment success] ****************************************************************************************************************************************
+ failed: [lnxpocopenshift01.ati.pe.gov.br] (item=[{u'namespace': u'default', u'name': u'docker-registry'}, {'_ansible_parsed': True, 'stderr_lines': [], u'cmd': [u'oc', u'get', u'deploymentconfig', u'docker-registry', u'--namespace', u'default', u'--config', u'/etc/origin/master/admin.kubeconfig', u'-o', u'jsonpath={ .status.latestVersion }'], u'end': u'2018-05-04 10:20:02.557703', '_ansible_no_log': False, u'stdout': u'1', '_ansible_item_result': True, u'changed': True, 'item': {u'namespace': u'default', u'name': u'docker-registry'}, u'delta': u'0:00:00.271658', u'stderr': u'', u'rc': 0, u'invocation': {u'module_args': {u'warn': True, u'executable': None, u'_uses_shell': False, u'_raw_params': u"oc get deploymentconfig docker-registry --namespace default --config /etc/origin/master/admin.kubeconfig -o jsonpath='{ .status.latestVersion }'", u'removes': None, u'creates': None, u'chdir': None, u'stdin': None}}, 'stdout_lines': [u'1'], u'start': u'2018-05-04 10:20:02.286045', '_ansible_ignore_errors': None, 'failed': False}]) => {"attempts": 1, "changed": true, "cmd": ["oc", "get", "replicationcontroller", "docker-registry-1", "--namespace", "default", "--config", "/etc/origin/master/admin.kubeconfig", "-o", "jsonpath={ .metadata.annotations.openshift\\.io/deployment\\.phase }"], "delta": "0:00:00.257717", "end": "2018-05-04 10:20:03.286017", "failed": true, "failed_when_result": true, "item": [{"name": "docker-registry", "namespace": "default"}, {"_ansible_ignore_errors": null, "_ansible_item_result": true, "_ansible_no_log": false, "_ansible_parsed": true, "changed": true, "cmd": ["oc", "get", "deploymentconfig", "docker-registry", "--namespace", "default", "--config", "/etc/origin/master/admin.kubeconfig", "-o", "jsonpath={ .status.latestVersion }"], "delta": "0:00:00.271658", "end": "2018-05-04 10:20:02.557703", "failed": false, "invocation": {"module_args": {"_raw_params": "oc get deploymentconfig docker-registry --namespace default --config /etc/origin/master/admin.kubeconfig -o jsonpath='{ .status.latestVersion }'", "_uses_shell": false, "chdir": null, "creates": null, "executable": null, "removes": null, "stdin": null, "warn": true}}, "item": {"name": "docker-registry", "namespace": "default"}, "rc": 0, "start": "2018-05-04 10:20:02.286045", "stderr": "", "stderr_lines": [], "stdout": "1", "stdout_lines": ["1"]}], "rc": 0, "start": "2018-05-04 10:20:03.028300", "stderr": "", "stderr_lines": [], "stdout": "Failed", "stdout_lines": ["Failed"]} | Checar o PVC e PV ->
+
+*Solução*
+
+1. Verificar o path do _pv - registry-volume_
+2. Fazer alteração e exercutar o ansible unninstal (para remover PV e PVC) e depois deploy-cluster
+
+
+ [root@lnxpocopenshift01 ~]# oc describe pv  registry-volume
+ Name:            registry-volume
+ Labels:          <none>
+ Annotations:     pv.kubernetes.io/bound-by-controller=yes
+ StorageClass:
+ Status:          Bound
+ Claim:           default/registry-claim
+ Reclaim Policy:  Retain
+ Access Modes:    RWX
+ Capacity:        40Gi
+ Message:
+ Source:
+     Type:      NFS (an NFS mount that lasts the lifetime of a pod)
+     Server:    lnxpocopenshift06.ati.pe.gov.br
+     Path:      /exports/registry  <1>
+     ReadOnly:  false
+ Events:        <none>
+
+
+<1> O arquivo de configuração (inventário) tem que parametrizar o caminho correto, se repetir o nome em qualquer o caminho do registry ficará errado.
+
+*2-Problema*
+
+DNS não é alterado - DNS continua externo ou fora do padrao openshiftiano.
+
+
+Solução
+
+1. Alterar /etc/resolv.conf para o modo abaixo
+
+ # nameserver updated by /etc/NetworkManager/dispatcher.d/99-origin-dns.sh
+ # Generated by NetworkManager
+ search cluster.local ati.pe.gov.br
+ nameserver 10.238.108.9
+
+2. Usar o script que esteja funcional . Pegar este script _/etc/NetworkManager/dispatcher.d/99-origin-dns.sh_ em algum servidor que esteja funcionando e copiar para o nó com defeito
+
+_Reinicie os serviços na ordem_
+
+ systemctl restart systemd-logind NetworkManager dbus dnsmasq
+
+
+*3 Problema alterar label de um servidor já configurado*
+
+Solução alterar as labels dos campos
+
+- node-role.kubernetes.io/compute
+- region
+- env
+
+Listar as labels ligado a um nó
+
+ oc label node lnxpocopenshift04.ati.pe.gov.br  --list=true
+
+Alterando as labels
+
+ oc label node lnxpocopenshift05.ati.pe.gov.br  --overwrite region=infra
+ oc label node lnxpocopenshift04.ati.pe.gov.br  --overwrite region=primary
+ oc label node lnxpocopenshift04.ati.pe.gov.br  --overwrite node-role.kubernetes.io/compute=true
+ oc label node lnxpocopenshift05.ati.pe.gov.br  --overwrite node-role.kubernetes.io/compute=false
+ oc label node lnxpocopenshift04.ati.pe.gov.br  --list=true
+
+
+=== Comandos Openshift
+
+.Comandos administrativos Openshift
+|===
+|Command   | Ação
+|oc delete all -l docker-registry=default | Deletar todos os recursos com determinada label
+|oc get  clusterrolebindings | pegar informações sobre cluster binding
+|oc get pods | pegar informações sobre pods
+|oc get bc | pegar informações sobre o build config
+|oc get dc | pegar informações sobre o deployment config
+|oc get svc | pegar todos os serviços disponíveis
+|oc  describe svc docker-registry | pegar infromacoes do servico no caso docker registry
+|oc get sa | pegar as credenciais criadas
+|oc login -u system:admin | Login no openshift
+|htpasswd /etc/origin/master/users.htpasswd  admin | Criacao de senha para o usuario admin no cluster
+|oc adm policy add-cluster-role-to-user cluster-admin storage | Compartilhando função de admin
+|oc get po --all-namespaces -o wide | lista os pods e os servidores que estão usando ele
+|oc get po --all-namespaces | Lista todos os pods name spaces
+|oc logs -f hawkular-cassandra-1-jlrppoc logs -f hawkular-cassandra-1-jlrpp | Ver a console do Container
+|oc logs -f logging-es-data-master-a93ychrc-2-wqkmk -c elasticsearch | Visualiza o log da console do pod
+|oc label node lnxpocopenshift05.ati.pe.gov.br  --list=true| Listando label de um servidor
+|oc label node lnxpocopenshift04.ati.pe.gov.br  --overwrite env=app | Alterando label de um servidor
+|===
+
+=== Configuração de storage PV e PVC
+
+.Comandos administrativos Openshift
+|===
+|Storage |Modelo de configuração   | Link
+| NFS  |  criação de um PVC NFS  | https://github.com/aspenbr/henryford/blob/master/auto-diadia/Openshift/configuracao/storage/nfs-claim.yaml
+| NFS | criação de PV para Logging | https://github.com/aspenbr/henryford/tree/master/auto-diadia/Openshift/configuracao/storage
+| NFS | criação do PV para registry | https://github.com/aspenbr/henryford/blob/master/auto-diadia/Openshift/configuracao/storage/nfs-registry.yaml
+| Gluster | Storage Class Gluster | https://github.com/aspenbr/henryford/blob/master/auto-diadia/Openshift/configuracao/storage/storageclass-gluster.yaml
+| Gluster | Storage PVC Gluster | https://github.com/aspenbr/henryford/blob/master/auto-diadia/Openshift/configuracao/storage/gluster-dyn-claim-pvc.yaml
+
+|===
+=== Configuração IDM
+
+*Configuração do registro labs.corp*
+
+É necessário permitir que o _labs.corp_ resolva o ip do idm. A configuração deve ser feita dentro do registro "@ labs.corp". Adicione dentro deste registro o endereço IP do IDM.
+
+image::/Users/redhat/git/anotacoes/Imagens/openshift/idm.png[idm]
+
+*Configuração do registro PTR*
+
+A criação do registro PTR para instalação do gluster deverá ser feita como o modelo abaixo:
+
+image::/Users/redhat/git/anotacoes/Imagens/openshift/idm-dns1.png[registro-ptr]
+
+=== Diretorios de inventório
+
+*Diretorios de inventário*
+
+auto-diadia/Openshift/configuracao/NovoModelo/

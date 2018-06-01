@@ -1,0 +1,286 @@
+= Anotações sobre infraestrutura
+
+*
+
+
+== DNS Unbound
+
+*Descrição do Unbound*
+
+Um unbound é uma especie de dns criado para ser forward para DNS principal. Sua principal vantagem é segurança e a sua simplicidade.
+
+*Qual é sua utilidade ?*
+
+* Ser um servidor de DNS cache
+
+*Quando usar?*
+
+* Quando precisar de um proxy para DNS com nível maior de gerenciabilidade
+
+
+=== Modelo de configuração
+
+O seu procedimento de instalação não é complexo é bastante simples. O arquivo de configuração principal é /etc/unbound/unbound.conf
+
+*Instalação do unbound*
+
+ yum install -y unbound
+
+*Coloque o daemon para ler todas as interfaces*
+
+ interface: 0.0.0.0
+
+
+*Por padrão o unbound não aceita requisitos de clientes internos apenas loopback*
+
+ access-control: 192.168.1.0/24 allow
+
+*Configuração para forwarder*
+
+ forward-zone:
+  name: "."
+  forward-addr: 192.168.122.200
+
+
+*Configure para aceitar requisições de dominio interno sem certificado*
+
+
+*Observações*
+
+1. A porta 53/udp e tcp deverá estar aberta para funcionar unbound
+
+
+
+=== Tabela de comando para solução de problemas de DNS
+
+
+.Recursos para solução de problemas de nomes (DNS)
+|===
+|Ação desejada | Comando
+|Checar configuração do unbound  | unbound-check-conf
+|Checando dnssec de um dominio | dig +dnssec DNSKEY rhatcert.com
+|Checando todas configuração de um dominio | dig www.uol.com.br
+|Descobrindo os registros relacionados ao email | dig MX www.rhacert.com
+|Limpando cache | unbound-control flush myhost.zone.com
+|Mostra o nome que está configurado para servidor passado | dig -x <ip>
+|Visualizando cache do unbound| unbound-control dump_cache
+|Salvando cache do unbound | unbound-control dump_cache > dns.teste <1>
+|Inserindo um arquivo dump | unbound-control dump_cache < dns.teste
+|===
+
+<1> É possível salvar o arquivo dump em arquivo txt alterá-lo e depois inserir para o serviço
+
+
+
+== Networking group
+
+
+== Desempenho
+
+
+== Gerenciamento de log
+
+
+== Servidor de horario e sincronismo
+
+
+== Serviço SSH
+
+== Serviço MySQL
+
+==== Procedimento de instalação , configuração e backup mysql
+
+
+ yum install -y mariadb mariadb-server mariadb-test
+ systemctl start mariadb; systemctl enable mariadb
+ ss -tulpen | grep mysql
+ Altere o parametro skip_networking=1 dentro do arquivo my.cnf <1>
+
+<1> Disabilita networking
+
+==== Procedimento de segurança
+
+ mysql_secure_installation <1>
+ mysql -u root -p
+ show dabases <2>
+
+<1> Este procedimento é parar desabilitar o root fazer login e configurar uma senha de login
+<2> Teste para conectar ao banco
+
+==== Tabela de comandos Mysql
+
+. Tabela de comandos do Selinux
+
+
+|===
+|Ação  | Comando
+| Descreve usuário | describe user;
+| Criação banco de dados | CREATE DATABASE addressbook;
+| Usa base de dados | USE addressbook;
+| Mostra tabelas | SHOW TABLES;
+| Cria tabela |  CREATE TABLE addressbook(name VARCHAR(40),street
+VARCHAR(40));
+| Cria base de dados | create database
+| Inserir dados |  INSERT INTO addressbook (name,street) VALUES (‘linda jones’,’state street’);
+| Selecione |  SELECT * from addressbook;
+| Update |  UPDATE addressbook SET street=’main street’ WHERE name = ‘linda jones’;
+| Report | SELECT name,street FROM addressbook;.
+| Criação |  CREATE USER lisa@localhost IDENTIFIED BY ‘password’;
+| Remover um usuário |  GRANT SELECT ON database.table TO user@host;
+| Garantir permissão-1 | GRANT SELECT ON database.* TO user@host;
+| Garantir permissão-2 | GRANT SELECT ON *.* TO user@host;
+| Garantir permissão-3 | GRANT CREATE, ALTER, DROP ON database.* to user@host;
+| Garantir permissão-4 | GRANT ALL PRIVILEGES ON *.* to user@host;
+| Atualiza as ações feitas | FLUSH PRIVILEGES;
+| Mostra permissão do usuário sobre um objeto | SHOW GRANTS FOR user@host;.
+|===
+
+==== Procedimentos geral de backup
+
+*Como fazer o backup*
+
+  mysqldump -u root -p videos --databases > /root/videos-db.``
+
+*Comando para restaurar backup*
+
+  mysqldump -u root -p databasename < /root/databasename.dump.
+
+*Garanta que durante o backup não tenha arquivos presos*
+
+ FLUSH TABLES WITH READ LOCK; <1>
+
+<1>  This command closes all tables and locks all tables for all databases with a global read lock. This is a convenient way to make sure that nothing is written to the database while the snapshot is being created in the next step of this procedure. An alternative solution is to stop the mariadb service completely by using systemctl stop mariadb and start it again after the snapshot has been created.
+
+*Tirando snapshot Mysql da particição*
+
+  lvcreate -s -n lvdatabase-snap -L 1G /dev/vgname/lvdatabase.
+
+*Destravar tabelas*
+
+  UNLOCK TABLES;
+
+*Depois remova o snapshot*
+
+lvremove
+
+
+
+== Serviço HTTPS
+
+
+==== Procedimento para geração SSL
+
+*Os três passos necessários para instalação do SSL*
+
+1. A certificate must be obtained.
+
+2. The required Apache TLS modules must be installed.
+
+3. The Apache (virtual) host must be configured to use the certificates.
+
+*Instalação de pacotes*
+
+ yum install crypto-utils mod_ssl
+
+*Chame o gerenciador certificado*
+
+ genkey sales.example.com
+
+ * Selecione o tamanho da chave 2048 bits
+
+*Modelo de configuração SSL*
+
+ Listen 443 https
+ SSLPassPhraseDialog exec:/usr/libexec/httpd-ssl-pass-dialog
+ SSLSessionCache         shmcb:/run/httpd/sslcache(512000)
+ SSLSessionCacheTimeout  300
+ SSLRandomSeed startup file:/dev/urandom  256
+ SSLRandomSeed connect builtin
+ SSLCryptoDevice builtin
+  <VirtualHost _default_:443>
+   ErrorLog logs/ssl_error_log
+   TransferLog logs/ssl_access_log
+   LogLevel warn
+   SSLEngine on
+   SSLProtocol all -SSLv2
+   SSLCipherSuite HIGH:MEDIUM:!aNULL:!MD5
+   SSLCertificateFile /etc/pki/tls/certs/localhost.crt
+   SSLCertificateKeyFile /etc/pki/tls/private/localhost.key
+   <Files ~ "\.(cgi|shtml|phtml|php3?)$">
+   SSLOptions +StdEnvVars
+  </Files>
+  <Directory "/var/www/cgi-bin">
+   SSLOptions +StdEnvVars
+  </Directory>
+    BrowserMatch "MSIE [2-5]" \
+    nokeepalive ssl-unclean-shutdown \
+    downgrade-1.0 force-response-1.0
+    CustomLog logs/ssl_request_log \
+    "%t %h %{SSL_PROTOCOL}x %{SSL_CIPHER}x \"%r\" %b"
+   </VirtualHost>
+
+   1. To configure a virtual host, start by changing the VirtualHost _default_:443 line to VirtualHost *:443. Then, change the ServerName to match the name of the server you are going to be using.
+
+   2. After changing the ServerName, you need to change the SSLCertificateFile and the SSLCertificateKeyFile to match the names of the files that you have just created.
+
+   3. If you want all traffic that comes in on the regular HTTP port 80 to be redirected to the TLS secured host, include the following block in the definition of the /etc/httpd/conf.d/sales.example.com.conf file you have created previously:
+
+   4. Restart the httpd service, using systemctl start httpd.service and make sure it is enabled by using systemctl enable httpd.service.
+
+
+*Exemplo de modelo de configuração virtual host*
+
+ <VirtualHost *:80>
+   ServerName sales.example.com
+   RewriteEngine on
+   RewriteRule ^(/.*)$  https://%{HTTP_POST}$1
+  [redirect=301]
+ </VirtualHost>
+
+
+=== Procedimento segurança SELinux
+
+==== Permissão Selinux
+
+Utilize o guia de segurança para os ajustes necessários
+
+*Liberando conexão com banco de dados externos*
+
+A Boolean selinux precisa ser habilitada para conexão de um banco remoto `httpd_can_network_connect_db`
+
+==== Permissao por RBAC
+
+ setfacl -R -m g:webdev:rwX /www/docs
+ setfacl -R -m d:g:webdev:rwx /www/docs
+
+==== Permissão por httpasswd
+
+*Geração de senha*
+
+  htpasswd -c /etc/httpd/htpasswd username
+
+*Integração de senha*
+
+   <Directory /var/www/html/secret>
+   AuthType Basic
+   AuthName "secret files"
+   AuthUserFile /etc/httpd/htpasswd
+   Require user valid-user
+  </Directory>
+
+==== Execução de script python
+
+*Instale o pacote*
+
+   mod_wsgi
+
+*Insira a chamada*
+
+  WSGIScriptAlias /webapp/ /opt/webapp/app.py
+
+
+==== Instalação do manual e acesso
+
+  yum install -y httpd-manual
+  systemctl restart httpd
+  http://localhost/manual

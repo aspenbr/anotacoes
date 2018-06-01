@@ -125,9 +125,9 @@ ou
 
 O arquivo `/etc/iscsi/iscsi.conf` permite registrar o usuário e senha que serão utilizados para logar
 
-node.session.auth.authmethod = CHAP
-node.session.auth.username = usr
-node.session.auth.password = pwd
+ node.session.auth.authmethod = CHAP
+ node.session.auth.username = usr
+ node.session.auth.password = pwd
 
 
 === Comando para gerenciamento do iSCSI
@@ -150,3 +150,19 @@ node.session.auth.password = pwd
 
 |Listar se existe algum dispositivo iscsi ou scsi | lsblk --scsi
 |===
+
+
+=== links de apoio
+
+* https://www.certdepot.net/rhel7-configure-iscsi-target-initiator-persistently/
+* https://access.redhat.com/articles/9883
+* https://arkit.co.in/could-not-create-networkportal-in-configfs/
+* https://zahidhaseeb.wordpress.com/2017/03/06/iscsi-target-targetcli-configuration-for-rhelcentos-7x/
+* https://access.redhat.com/downloads
+* https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/5/html-single/online_storage_reconfiguration_guide/#removing_path-to-storage-device
+* https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/5/html/online_storage_reconfiguration_guide/iscsilogin
+* https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/6/html/storage_administration_guide/iscsi-scanning-interconnects
+* https://www.rootusers.com/how-to-configure-an-iscsi-target-and-initiator-in-linux/
+* https://www.tecmint.com/create-luns-using-lvm-in-iscsi-target/
+* https://unix.stackexchange.com/questions/207534/iscsi-login-failed-with-error-24-could-not-log-in-to-all-portals
+* https://access.redhat.com/articles/2951731

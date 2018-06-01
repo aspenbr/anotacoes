@@ -35,9 +35,6 @@ no_root_squash: Por padrão o root é mapeado para um usuário NFSNOBODY no serv
 
   firewall-cmd --permanent --add-service=nfs;
   firewall-cmd --reload
-
-2. Regras de firewall deveram ser habilitadas do lado cliente
-
   firewall-cmd --add-service rpc-bind --permanent
   firewall-cmd --add-service mountd --permanent
   firewall-cmd --reload
@@ -62,13 +59,15 @@ _nfs_export_all_rw_
 
 **Exemplo de configuração completo**
 
- mkdir /srv/nfsexport
- 
+  mkdir /srv/nfsexport
+  semanage fcontext -a -t nfs_t "srv/nfsex-port(/.*)?"
+  systemctl start nfs-server && systemctl enable nfs-server
+  firewall-cmd --add-service nfs; firewall-cmd --reload
+  firewall-cmd --permanent --add-service mountd --add-service rpc-bind; firewall-cmd --reload
+  showmount -e server1
+  mkdir /mnt/nfs; mount server1:/srv/nfsexport /mnt/nfs
+  mount
 
-****
-
-
-****
 
 
 ==== Kerberos
@@ -77,16 +76,22 @@ _nfs_export_all_rw_
 
 ===== Acessando NFS via comando normal
 
+ mount nfsserver:/sharename /mountpoint
 
 
 ===== Montagem NFS de forma persistente
 
 A montagem do compartilhamento NFS precisa do parametro _netdev para montagem durante o boot, teste o fstab via comando `mount -a` antes de fazer o boot
 
-**Parametro de montagem**
+**1.Parametro de montagem**
 
  nfsserver:/sharename /mountpoint nfs _netdev 0 0
 
+**2. Configurando o serviço remote-fs.target**
+
+ systemctl status remote-fs.target
+
+Reinicie o servidor
 
 ===== Acessando NFS com Kerberos
 

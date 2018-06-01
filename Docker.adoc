@@ -1,0 +1,275 @@
+= Anotações sobre Docker
+-------
+
+= Duvidas gerais
+
+== Procedimento de instalação Docker
+== Como funciona Docker pull ?
+
+== Como docker images ?
+
+== Componentes Docker
+
+*O Docker trabalha com uma série de componentes*
+
+* *Imagens:* Docker images são templates (fedora / centos) que ficam disponíveis no modo leitura, toda modificação feita neste template é salva em nova camada.
+
+.Exemplo de uma construção de uma image Docker
+image::/Users/redhat/git/anotacoes/Imagens/4862OS_01_14.jpg[]
+
+* *Registries:* A função do Registry é guardar as imagens Docker.  Registry pode ser público ou privado, onde a imagem pode ser feito download e upload de imagens. Um dos mais famosos repositórios públicos Docker é conhecido https://hub.docker.com/[*Docker Hub*].
+
+* *Index:* O index tem a função gerenciar conta, permissão, busca, tags e todas as  coisa legais que fazem da experência do uso de Docker única.
+
+* Containers:* Containers é quando temos uma imagem unificada mais suas camadas acima.  _Lembre-se containers são efêmeros se você desligá-lo simplesmente todos os dados serão removidos !!
+
+* Repository:* Repositório  é uma coleção de imagens rastreadas pelo `GUIDS`. Diferente versões de uma imagem pode ser gerenciada por múltipas _TAGS_ no qual são salvas por diferentes _GUID_.
+
+== Docker file
+
+Endereco para pegar docker file exemplo : _https://github.com/sclorg/rhscl-dockerfiles_
+
+https://hub.docker.com/_/mysql/
+
+
+
+== Procedimento Docker
+
+1. Instalação docker
+
+  yum install docker
+
+2. Download de imagens Docker
+
+Faz download de todas as camadas no Docker registry  necessárias para criar uma imagem
+
+  docker pull centos:centos7
+  docker pull --all-tags centos
+
+3. Iniciando Docker
+
+ docker run -i <1> -t <2>  --name=f21 fedora /bin/bash <3>
+
+<1> -i Inicia o docker no modo interativo
+<2> -t Aloca pseudo tty e o anexo para entradas padros
+<3> Chama /bin/bash
+
+*Processo por de trás da inicialização de um container*
+
+1. Will merge all the layers that make that image using UnionFS.
+2. Allocates a unique ID to a container, which is referred to as Container ID.
+3. Allocates a filesystem and mounts a read/write layer for the container. Any changes on this layer will be temporary and will be discarded if they are not committed.
+4. Allocates a network/bridge interface.
+5. Assigns an IP address to the container.
+6. Executes the process specified by the user.
+7. Also, with the default Docker configuration, it creates a directory with the container's ID inside /var/lib/docker/containers, which has the container's specific information such as hostname, configuration details, logs, and /etc/hosts.
+
+*Monitorando container docker*
+
+É possível visualizar logs em tempo real da execução de um container até sua morte
+
+Comando para executar ações dentro de um contianer para monitoramento
+ $ docker run -d  fedora /bin/bash -c  "while [ 1 ]; do echo hello docker ; sleep 1; done"
+
+Comando para monitorar o log do Docker
+ docker logs [-f|--follow[=false]][-t|--timestamps[=false]] CONTAINER
+
+
+*Local onde docker armazena logs*
+
+Este é o diretorio onde Docker armazena seu logs #/var/lib/docker/containers/<Container ID>#
+
+
+*Configurando politica de restart para um container*
+
+Este procedimento permite amarrar um comando à saúde de container. Se o container morrer acidentalmente ou process morrer o contianer docker é iniciado automaticamente
+
+*Parametros para execução para docker:*
+
+docker run --restart=POLICY [ OPTIONS ]  IMAGE[:TAG]  [COMMAND]  [ARG...]
+
+_Parametros usado no item policy_
+
+no: This does not start the container if it dies
+on-failure: This restarts the container if it fails with nonzero exit code
+always: This always restarts the container without worrying about the return code
+
+*Exemplo de comando*
+
+ docker run --restart=always -d -i -t fedora /bin/bash
+ docker run --restart=on-failure:3 -d -i -t fedora /bin/bash
+
+*Executando um processo dentro de um container já inicializado*
+
+O parametro exec permitie entrar dentro de um namespace de um container e iniciar um novo processo
+
+Exemplo
+ $ ID='docker run -d nginx'
+ $ docker run -it $ID bash
+
+*Inspecionado um container Docker*
+
+É possível inspecionar o conteudo de container ou de uma imagem
+
+Parametro
+ $ docker inspect [-f|--format="" CONTAINER|IMAGE [CONTAINER|IMAGE...]
+
+Exemplo 01 - Usando componente _go_ iremos capturar o ip usado no namespace de um contianer em execução
+
+ docker inspect --format='{{.NetworkSettings.IPAddress}}'  $ID  <1>
+
+<1> o parametro --format é da lingugagem 'go'
+
+### Usando Labels
+
+
+O uso de Labels permite segmentar virtualmente o ambiente Docker. Permitindo criar ambiente DEV / PROD . Tornando mais fácil o uso de multiplos containers
+
+No exemplo abaixo iremos iniciar um container com uma tag
+
+  docker run --label environment=dev f21 date
+
+No exemplo abaixo iremos construir tags e segmentar o ambiente
+
+  docker run --name container2 --label environment=dev f21 date <1>
+  docker run --name container3 --label environment=prod f21 date <2>
+  docker ps -a <3>
+
+<1> Criamos um contianer com label DEV
+<2> Criamos um contianer com label prod
+<3> Ao mandarmos listar os containers o metadado amarrado ao container (tag --> contianer) aparecerá na listagem o ambiente dividido por DEV e prod
+
+
+
+.Comandos operacionais Docker gerenciamento de imagem
+|===
+|Ação desejada | Comando Docker | Parametro
+|Puxa imagem| docker pull fedora | docker pull NAME[:TAG]
+|Listar imagens | docker images
+|Procurar por imagens| docker search rhel ou docker search debian
+|===
+
+.Comandos operacionais Docker
+|===
+|Ação desejada | Comando Docker | Parametro
+|Executando container Docker em background  | docker run -d -i -t fedora /bin/bash <1> |ND
+|Executando container Docker em foreground (interativo) | docker run  -i -t fedora /bin/bash | ND
+|Attachando uma sessão em background Docker | docker ps e depois docker attach o `docker $id` desejado | ND
+|Atachando uma sessão docker e iniciando ela em modo backgroup | ID='docker run -d -i -t fedora /bin/bash' | ND
+|Saindo de um container sem perder a sessao |  CRTL + P |  ND
+|Removendo um container depois que ele inicia (Neste caso ele executa o comando date e depois morre)| docker run --rm fedora date | ND
+|Deletando um container | docker rm ou stop $ID | ND
+|Executando um container em modo leitura | docker run --read-only -d -i -t fedora /bin/bash | ND
+|Listando container | docker ps | docker ps [ OPTIONS ]
+|Parando todos os containers | docker stop 'docker ps -q' | ND
+|Criando uma política de restart para um container |  docker run --restart=always -d -i -t fedora /bin/bash | ND
+|Parando um container | docker stop $ID | docker stop [-t|--time[=10]] CONTAINER [CONTAINER...]
+
+|===
+
+.Comandos especiais para inicialização do Docker
+|===
+|Ação desejada | Comando Docker | Parametro
+|Executando docker no modo privilegiado | $ docker run  --privileged  -i -t fedora /bin/bash | docker run --privileged [ OPTIONS ]  IMAGE[:TAG]  [COMMAND]  [ARG...]
+|Expondo uma porta ao um container |  docker run --expose=22 -i -t fedora /bin/bash | docker run --expose=PORT [ OPTIONS ]  IMAGE[:TAG]  [COMMAND]  [ARG...]
+|Permitindo acesso do Docker a um dispositivo local | $ docker run --device=/dev/sdc:/dev/xvdc -i -t fedora /bin/bash | $ docker run --device=<Host Device>:<Container Device Mapping>:<Permissions>   [ OPTIONS ]  IMAGE[:TAG]  [COMMAND]  [ARG...]
+|Inserção de um processo à um container em execução| docker run -it $ID bash |  $ docker exec [-d|--detach[=false]] [--help] [-i|--interactive[=false]] [-t|--tty[=false]] CONTAINER COMMAND [ARG...]
+|===
+
+.Comandos de inspeção de um contianer
+|===
+|Ação desejada | Comando Docker | Parametro
+|Pegar um ip de um contianer | docker inspect --format='{{.NetworkSettings.IPAddress}}'  $ID | docker inspect [-f|--format="" CONTAINER | IMAGE [CONTAINER | IMAGE ...]
+|Pegar todos dados de uma imagem  |
+|Pegar todos dados de um container | docker inspect $ID
+|Procurando por labels | docker inspect -f '{{.Config.Labels}}' container2
+|Versão do Docker | docker info
+|===
+
+*Detalhes*
+
+<1> Um contianer pode ser executado pelo ID , Nome e parte do ID
+
+
+## Laboratorios - Container Dreams
+
+
+### Construir  um container Apache + PHP estático
+
+*Construção da imagem Docker*
+
+
+ docker run  -d -t -i  d01d4f01d3c4  /bin/bash
+
+*Instalação do Apache e  PHP*
+
+ yum install php httpd
+
+*Colocar o arquivo php (php settings)*
+
+  <?php phpinfo(); ?>
+
+* Expondo a porta 80 *
+
+  docker run --expose=80 -d -t -i bd566a821039 /bin/bash
+
+  iptables -t nat -A  DOCKER -p tcp --dport 80 -j DNAT --to-destination  172.17.0.2:80
+
+
+*Salvar imagem Apache e PHP*
+
+ docker commit -m "apache_php" -a "bst" a567 ecstatic_hodgkin/rhel:http_php
+
+### Construir  um container Apache + PHP via Docker File
+
+* Arquivo docker file
+
+
+###
+.Comandos de inspeção de um contianer
+|===
+|Ação desejada | Comando Docker | Parametro
+|Pegar um ip de um contianer | docker inspect --format='{{.NetworkSettings.IPAddress}}'  $ID | docker inspect [-f|--format="" CONTAINER | IMAGE [CONTAINER | IMAGE ...]
+|Peg
+|===
+
+
+### Docker Storage
+
+Link para apoiar na documentacao
+
+https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux_atomic_host/7/html/managing_containers/managing_storage_with_docker_formatted_containers
+
+
+
+Exercicio Docker
+
+1. Criar Container RHCA_RHCE || mover entre servidores
+   * iso repositorio
+   * acessar por http
+   * acessar por ftp
+   * guardar iso
+   * guardar kernel
+   * docker file
+2. GitLAB
+   * container
+   * docker file
+
+3. Dpsace
+   * container
+   * docker file
+
+4. FErramenta de controle de tempo
+   * contianer
+   * docker file
+
+5. Entropad
+   * container
+   * docker file
+
+0.
+   * instalação do mysql e postgres
+   * http e php pronto
+   * docker file SugarCRM
+   * docker file da ferramenta Dspace
+   * entender a ideia de link
